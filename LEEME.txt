@@ -1,0 +1,25 @@
+INTÉRPRETE DE BAZILIO - VERSIÓN PARA WINDOWS (etapas 1 a 6)
+============================================================
+
+Contenido
+  Bazilio.g4            gramática de ANTLR (etapa 1)
+  analizar.py           revisa sintaxis, tokens y árbol (etapa 1)
+  bazilio_etapa2.py ... bazilio_etapa6.py   puntos de control de cada etapa
+  bazilio.py            intérprete final (igual a la etapa 6)
+  programas\            todos los programas .bzl de prueba
+  probar_todo.bat       corre todas las pruebas de la guía
+
+Antes de usarlo (una sola vez), dentro de esta carpeta:
+  antlr4 -v 4.13.2 -Dlanguage=Python3 -visitor Bazilio.g4
+
+Ejemplos
+  python analizar.py programas\hello.bzl
+  python bazilio.py programas\hello.bzl
+  python bazilio.py programas\hanoi_musical.bzl Hanoi
+
+Cambios respecto a la guía (Linux/macOS):
+  - "python" en lugar de "python3"; rutas con \ en lugar de /.
+  - LilyPond en Windows escribe .mid; se le pasa -dmidi-extension=midi.
+  - La salida de las herramientas se lee como UTF-8.
+  - Si no tienes TiMidity++, el WAV se genera con Python (sin instalar nada más).
+  - La pila del hilo baja a 256 MB si Windows no acepta 512 MB.

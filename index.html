@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bazilio: palabras a música</title>
+<style>
+  :root {
+    --fondo: #f6f4ef;
+    --tarjeta: #ffffff;
+    --texto: #1e1d1a;
+    --suave: #6b675e;
+    --borde: #e2ddd2;
+    --acento: #7a3cff;
+    --acento-suave: #efe7ff;
+    --error: #b42318;
+    --mono: ui-monospace, "Cascadia Code", Consolas, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --fondo: #15141a; --tarjeta: #1f1e26; --texto: #eeeaf5; --suave: #a29daf;
+      --borde: #34323e; --acento: #a77bff; --acento-suave: #2c2440; --error: #ff8a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--fondo); color: var(--texto);
+    font: 16px/1.5 "Segoe UI", system-ui, sans-serif;
+  }
+  main { max-width: 860px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+  h1 span { color: var(--acento); }
+  .sub { color: var(--suave); margin: 0 0 24px; }
+  .tarjeta {
+    background: var(--tarjeta); border: 1px solid var(--borde);
+    border-radius: 14px; padding: 20px; margin-bottom: 16px;
+  }
+  label { font-weight: 600; display: block; margin-bottom: 8px; }
+  textarea {
+    width: 100%; min-height: 90px; resize: vertical; padding: 12px;
+    font: inherit; font-size: 1.1rem; color: var(--texto);
+    background: var(--fondo); border: 1px solid var(--borde); border-radius: 10px;
+  }
+  textarea:focus { outline: 2px solid var(--acento); border-color: transparent; }
+  .fila { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+  .ejemplo {
+    border: 1px solid var(--borde); background: transparent; color: var(--suave);
+    border-radius: 999px; padding: 4px 12px; cursor: pointer; font: inherit; font-size: .9rem;
+  }
+  .ejemplo:hover { color: var(--acento); border-color: var(--acento); }
+  button.principal {
+    margin-left: auto; background: var(--acento); color: #fff; border: 0;
+    border-radius: 10px; padding: 10px 20px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  button.principal:disabled { opacity: .6; cursor: wait; }
+  h2 { font-size: 1.05rem; margin: 0 0 12px; }
+  .palabra { margin-bottom: 10px; }
+  .palabra b { display: inline-block; min-width: 90px; }
+  .nota {
+    display: inline-block; font-family: var(--mono); font-size: .85rem;
+    background: var(--acento-suave); color: var(--acento);
+    border-radius: 6px; padding: 2px 6px; margin: 2px 2px 2px 0;
+  }
+  .nota small { color: var(--suave); }
+  pre {
+    margin: 0; padding: 14px; overflow-x: auto; border-radius: 10px;
+    background: var(--fondo); border: 1px solid var(--borde);
+    font: .88rem/1.5 var(--mono);
+  }
+  audio { width: 100%; margin-bottom: 12px; }
+  .archivos { display: flex; flex-wrap: wrap; gap: 8px; }
+  .archivos a {
+    text-decoration: none; color: var(--texto); border: 1px solid var(--borde);
+    border-radius: 8px; padding: 6px 12px; font-family: var(--mono); font-size: .88rem;
+  }
+  .archivos a:hover { border-color: var(--acento); color: var(--acento); }
+  iframe { width: 100%; height: 420px; border: 1px solid var(--borde); border-radius: 10px; margin-top: 12px; background: #fff; }
+  .error { color: var(--error); font-weight: 600; }
+  .aviso { color: var(--suave); font-size: .9rem; white-space: pre-wrap; }
+  .oculto { display: none; }
+  .modos { display: inline-flex; border: 1px solid var(--borde); border-radius: 10px; padding: 3px; margin-bottom: 14px; }
+  .modos button {
+    border: 0; background: transparent; color: var(--suave); font: inherit; font-weight: 600;
+    padding: 6px 16px; border-radius: 8px; cursor: pointer;
+  }
+  .modos button[aria-pressed="true"] { background: var(--acento); color: #fff; }
+  .tabla { font-size: .85rem; color: var(--suave); }
+  .tabla code { font-family: var(--mono); color: var(--texto); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Bazilio: <span>palabras a música</span></h1>
+  <p class="sub">Escribe una o varias palabras. Cada letra se convierte en una nota, se crea un programa Bazilio
+    y tu intérprete genera la partitura (PDF), el MIDI, el WAV y el MP3.</p>
+
+  <section class="tarjeta">
+    <div class="modos" role="group" aria-label="Modo">
+      <button type="button" data-modo="palabras" aria-pressed="true">Palabras</button>
+      <button type="button" data-modo="notas" aria-pressed="false">Notas</button>
+    </div>
+    <label for="texto" id="etiqueta">Tus palabras</label>
+    <textarea id="texto" placeholder="Por ejemplo: Hola mundo" maxlength="600"></textarea>
+    <div class="fila">
+      <span id="ejemplos"></span>
+      <button class="principal" id="convertir" type="button">Convertir a música</button>
+    </div>
+    <p class="tabla" id="regla"></p>
+  </section>
+
+  <section class="tarjeta" id="vista">
+    <h2>Vista previa de las notas</h2>
+    <div id="previa" class="aviso">Escribe algo para ver sus notas.</div>
+  </section>
+
+  <section class="tarjeta oculto" id="estado"></section>
+
+  <section class="tarjeta oculto" id="resultado">
+    <h2>Escúchala</h2>
+    <audio id="audio" controls></audio>
+    <div class="archivos" id="archivos"></div>
+    <p class="aviso" id="avisos"></p>
+    <iframe id="pdf" class="oculto" title="Partitura"></iframe>
+  </section>
+
+  <section class="tarjeta oculto" id="codigo-tarjeta">
+    <h2>Programa Bazilio generado</h2>
+    <pre id="codigo"></pre>
+  </section>
+</main>
+
+<script>
+  // misma regla que servidor.py (método francés)
+  function letraANota(letra) {
+    const i = letra.toUpperCase().charCodeAt(0) - 65;
+    const nombre = "ABCDEFG"[i % 7];
+    const octava = Math.floor(i / 7) % 2 === 0 ? 4 : 5;
+    return nombre + octava;
+  }
+  function palabras(texto) {
+    const limpio = texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    return limpio.match(/[A-Za-z]+/g) || [];
+  }
+  const $ = (id) => document.getElementById(id);
+  let modo = "palabras";
+
+  const MODOS = {
+    palabras: {
+      etiqueta: "Tus palabras",
+      placeholder: "Por ejemplo: Hola mundo",
+      ejemplos: ["Bach", "Hola mundo", "Lenguajes y Automatas"],
+      regla: "Regla: <code>A–G</code> ya son notas; las demás letras siguen el abecedario en ciclos de siete " +
+             "(<code>H=A</code>, <code>I=B</code>, <code>J=C</code>…). Acentos y ñ se toman sin acento; números y signos se ignoran.",
+    },
+    notas: {
+      etiqueta: "Tus notas",
+      placeholder: "Por ejemplo: C4 D4 E4 C4 B3 A3",
+      ejemplos: ["C4 D4 E4 C4 B3 A3", "E E F G G F E D C C D E E D D", "C4 D4 E4 F4 G4 A4 B4 C5"],
+      regla: "Escribe notas <code>A–G</code> con su octava (<code>C4</code> es el Do central). Sin número es la octava 4. " +
+             "Puedes separarlas con espacios o comas, o escribirlas juntas (<code>C4D4E4</code>). El piano va de <code>A0</code> a <code>C8</code>.",
+    },
+  };
+
+  // modo notas: separa 'C4D4 e4,B3' en ['C4','D4','E4','B3'] y marca lo que no sea nota
+  function leerNotas(texto) {
+    const notas = [], malas = [];
+    const re = /([A-Ga-g])([0-8]?)/g;
+    let pos = 0, m;
+    while ((m = re.exec(texto)) !== null) {
+      const sobra = texto.slice(pos, m.index).replace(/[\s,;|-]/g, "");
+      if (sobra) malas.push(sobra);
+      notas.push(m[1].toUpperCase() + m[2]);
+      pos = re.lastIndex;
+    }
+    const resto = texto.slice(pos).replace(/[\s,;|-]/g, "");
+    if (resto) malas.push(resto);
+    return { notas, malas };
+  }
+
+  function cambiarModo(nuevo) {
+    modo = nuevo;
+    const m = MODOS[modo];
+    document.querySelectorAll(".modos button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.modo === modo)));
+    $("etiqueta").textContent = m.etiqueta;
+    $("texto").placeholder = m.placeholder;
+    $("regla").innerHTML = m.regla;
+    $("ejemplos").innerHTML = "";
+    for (const ej of m.ejemplos) {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "ejemplo"; b.textContent = ej;
+      b.addEventListener("click", () => { $("texto").value = ej; pintarPrevia(); });
+      $("ejemplos").appendChild(b);
+      $("ejemplos").appendChild(document.createTextNode(" "));
+    }
+    pintarPrevia();
+  }
+
+  // si escribes notas con octava (C4 D4 B3) se usan como notas aunque estés en "Palabras"
+  function pareceNotas(t) {
+    return /^[\s,;|-]*(?:[A-Ga-g][0-8]?[\s,;|-]*)+$/.test(t) && /[A-Ga-g][0-8]/.test(t);
+  }
+  function modoReal() {
+    return modo === "palabras" && pareceNotas($("texto").value) ? "notas" : modo;
+  }
+
+  function pintarPrevia() {
+    if (modoReal() === "notas") {
+      const { notas, malas } = leerNotas($("texto").value);
+      $("previa").innerHTML = "";
+      if (!notas.length && !malas.length) { $("previa").textContent = "Escribe notas para verlas aquí."; return; }
+      const fila = document.createElement("div");
+      for (const n of notas) {
+        const s = document.createElement("span");
+        s.className = "nota"; s.textContent = n;
+        fila.appendChild(s);
+      }
+      $("previa").appendChild(fila);
+      if (modo === "palabras") {
+        const aviso = document.createElement("p");
+        aviso.className = "aviso";
+        aviso.textContent = "Detecté notas con octava: se tocarán como notas, respetando la octava.";
+        $("previa").appendChild(aviso);
+      }
+      if (malas.length) {
+        const e = document.createElement("p");
+        e.className = "error";
+        e.textContent = "No son notas: " + malas.join(", ");
+        $("previa").appendChild(e);
+      }
+      return;
+    }
+    const lista = palabras($("texto").value);
+    if (!lista.length) { $("previa").textContent = "Escribe algo para ver sus notas."; return; }
+    $("previa").innerHTML = "";
+    for (const p of lista) {
+      const fila = document.createElement("div");
+      fila.className = "palabra";
+      const b = document.createElement("b");
+      b.textContent = p;
+      fila.appendChild(b);
+      for (const c of p) {
+        const s = document.createElement("span");
+        s.className = "nota";
+        s.innerHTML = `<small>${c}</small> ${letraANota(c)}`;
+        fila.appendChild(s);
+      }
+      $("previa").appendChild(fila);
+    }
+  }
+
+  async function convertir() {
+    const texto = $("texto").value;
+    const boton = $("convertir");
+    boton.disabled = true;
+    boton.textContent = "Generando…";
+    $("estado").className = "tarjeta";
+    $("estado").innerHTML = "Generando la partitura y el audio. La primera vez LilyPond puede tardar un minuto…";
+    $("resultado").classList.add("oculto");
+    try {
+      const r = await fetch("/convertir", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ texto, modo: modoReal() }),
+      });
+      const datos = await r.json();
+      if (!r.ok) throw new Error(datos.error || "Error desconocido");
+      mostrar(datos);
+      $("estado").className = "tarjeta oculto";
+    } catch (e) {
+      $("estado").innerHTML = `<span class="error">Error: ${e.message}</span>`;
+    } finally {
+      boton.disabled = false;
+      boton.textContent = "Convertir a música";
+    }
+  }
+
+  function mostrar(d) {
+    const url = (n) => "/salida/" + encodeURIComponent(n);
+    $("archivos").innerHTML = "";
+    let mp3 = null, pdf = null;
+    for (const n of d.archivos) {
+      const a = document.createElement("a");
+      a.href = url(n); a.download = n; a.textContent = "⬇ " + n;
+      $("archivos").appendChild(a);
+      if (n.endsWith(".mp3")) mp3 = n;
+      if (n.endsWith(".pdf")) pdf = n;
+    }
+    $("audio").classList.toggle("oculto", !mp3);
+    if (mp3) $("audio").src = url(mp3);
+    $("pdf").classList.toggle("oculto", !pdf);
+    if (pdf) $("pdf").src = url(pdf);
+    $("avisos").textContent = [`${d.total} notas.`, ...d.avisos].join("\n");
+    $("codigo").textContent = d.codigo;
+    $("resultado").classList.remove("oculto");
+    $("codigo-tarjeta").classList.remove("oculto");
+  }
+
+  $("texto").addEventListener("input", pintarPrevia);
+  $("convertir").addEventListener("click", convertir);
+  $("texto").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) convertir();
+  });
+  document.querySelectorAll(".modos button").forEach((b) =>
+    b.addEventListener("click", () => cambiarModo(b.dataset.modo)));
+  cambiarModo("palabras");
+</script>
+</body>
+</html>
