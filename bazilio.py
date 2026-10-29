@@ -1,4 +1,15 @@
+"""Intérprete de Bazilio - versión final (etapas 1 a 6): música (partitura PDF, MIDI, WAV y MP3).
 
+Versión para Windows. Diferencias con la guía (que está escrita para Linux/macOS):
+  * Se usa "python" en lugar de "python3".
+  * LilyPond en Windows guarda el MIDI como .mid; se le pide .midi con
+    -dmidi-extension=midi para que los nombres coincidan con la guía.
+  * La salida de las herramientas se decodifica como UTF-8 (en Windows la
+    codificación por defecto es cp1252 y podía romper los mensajes).
+  * TiMidity++ es difícil de instalar en Windows: si no está, el WAV se genera
+    con un sintetizador sencillo escrito en Python (módulos wave y math).
+  * El tamaño de pila del hilo se reduce si Windows no acepta 512 MB.
+"""
 import math
 import os
 import re
@@ -388,13 +399,17 @@ def generar_salida(partitura, base, solo_ly=False, aviso=print):
         return generados
     generados += [base + ".pdf", base + ".midi"]
 
-    # 2) WAV: con TiMidity++ si está instalado; si no, con Python
-    if shutil.which("timidity") is not None:
-        if not correr(["timidity", "-Ow", "-o", base + ".wav", base + ".midi"], "el WAV"):
-            return generados
-    else:
-        sintetizar_wav(partitura, base + ".wav")
-    generados.append(base + ".wav")
+    # 2) WAV: con el sintetizador de Python (suena igual en Windows y en el
+    #    servidor). TiMidity++ solo se usa si se pide con BAZILIO_TIMIDITY=1;
+    #    si falla o deja el WAV vacío, se vuelve al sintetizador de Python.
+    wav = base + ".wav"
+    usar_timidity = (os.environ.get("BAZILIO_TIMIDITY") == "1"
+                     and shutil.which("timidity") is not None)
+    if not (usar_timidity
+            and correr(["timidity", "-Ow", "-o", wav, base + ".midi"], "el WAV")
+            and os.path.exists(wav) and os.path.getsize(wav) > 1000):
+        sintetizar_wav(partitura, wav)
+    generados.append(wav)
 
     # 3) ffmpeg: MP3
     if correr(["ffmpeg", "-y", "-loglevel", "error", "-i", base + ".wav",

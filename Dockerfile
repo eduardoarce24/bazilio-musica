@@ -1,9 +1,9 @@
-# Imagen para desplegar "Bazilio: palabras a musica" en internet (Render)
+# Imagen para desplegar "Bazilio: palabras a música" en internet (Render, Railway, etc.)
 FROM python:3.12-slim
 
-# LilyPond (PDF y MIDI), TiMidity++ con sonidos (WAV), ffmpeg (MP3) y Java (para ANTLR)
+# LilyPond (PDF y MIDI), ffmpeg (MP3) y Java (para ANTLR). El WAV lo genera Python.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        lilypond timidity freepats ffmpeg default-jre-headless \
+        lilypond ffmpeg default-jre-headless \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
